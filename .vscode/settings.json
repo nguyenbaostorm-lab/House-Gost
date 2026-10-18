@@ -1,0 +1,45 @@
+{
+  "files.associations": {
+    "*.h": "cpp",
+    "*.hpp": "cpp"
+  },
+  "C_Cpp.default.configurationProvider": "platformio.platformio-ide",
+  "C_Cpp.default.compileCommands": "${workspaceFolder}/compile_commands.json",
+  "C_Cpp.errorSquiggles": "enabled",
+
+  // --- GIAO DIỆN & THEME ĐẸP ---
+  "workbench.colorTheme": "One Dark Pro Darker",
+  "workbench.iconTheme": "material-icon-theme",
+
+  // --- HIỆU ỨNG GÕ CODE ĐỈNH CAO (POWER MODE) ---
+  "powermode.enabled": true,
+  "powermode.presets": "particles",
+  "powermode.shake.maxShake": 3,
+  "powermode.combo.counterEnabled": true,
+  "powermode.combo.timerEnabled": true,
+  "powermode.combo.location": "statusBar",
+
+  // --- CON TRỎ & CUỘN MƯỢT MÀ ---
+  "editor.cursorBlinking": "smooth",
+  "editor.cursorSmoothCaretAnimation": "on",
+  "editor.cursorStyle": "line",
+  "editor.cursorWidth": 3,
+  "editor.smoothScrolling": true,
+  "workbench.list.smoothScrolling": true,
+
+  // --- PHÔNG CHỮ & ĐỊNH DẠNG CODE ĐẸP ---
+  "editor.fontFamily": "'Cascadia Code', 'Fira Code', 'JetBrains Mono', Consolas, 'Courier New', monospace",
+  "editor.fontLigatures": true,
+  "editor.fontSize": 14,
+  "editor.lineHeight": 1.6,
+
+  // --- BẢY SẮC CẦU VỒNG NGOẶC & THỤT LỀ ---
+  "editor.bracketPairColorization.enabled": true,
+  "editor.guides.bracketPairs": "active",
+  "editor.guides.bracketPairsHorizontal": true,
+  "editor.renderLineHighlight": "all",
+
+  // --- ERROR LENS (HIỂN THỊ LỖI TRỰC TIẾP TRÊN CODE) ---
+  "errorLens.enabled": true,
+  "powermode.shake.enabled": true
+}
