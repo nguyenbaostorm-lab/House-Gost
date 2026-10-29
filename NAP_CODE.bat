@@ -1,4 +1,5 @@
 @echo off
+cd /d "%~dp0"
 setlocal enabledelayedexpansion
 title HE THONG NAP CODE STM32 DA PHIEN BAN (MULTI-VERSION)
 chcp 65001 >nul
@@ -83,13 +84,11 @@ echo.
 echo   --- DANH SACH PHIEN BAN TRONG THU MUC VERSIONS ---
 
 set ver_count=0
-for /d %%D in ("JOB_2_HAUNTED_HOUSE\VERSIONS\*") do (
-    if exist "%%D\%MACH_NAME%" (
-        set /a ver_count+=1
-        set "VER_NAME_!ver_count!=%%~nxD"
-        set "VER_PATH_!ver_count!=%%D\%MACH_NAME%"
-        echo   [!ver_count!] %%~nxD
-    )
+for /f "delims=" %%D in ('powershell -ExecutionPolicy Bypass -File "%~dp0get_versions.ps1" "!MACH_NAME!"') do (
+    set /a ver_count+=1
+    set "VER_NAME_!ver_count!=%%D"
+    set "VER_PATH_!ver_count!=JOB_2_HAUNTED_HOUSE\VERSIONS\%%D\!MACH_NAME!"
+    echo   [!ver_count!] %%D
 )
 
 echo.
@@ -249,8 +248,8 @@ echo   LUU CODE DANG SUA TAY VAO VERSION MOI NHAT HIEN CO
 echo ========================================================
 echo.
 
-set "LATEST_VER=V3_1_FIX_VIN_SCANIGHT"
-for /d %%D in ("JOB_2_HAUNTED_HOUSE\VERSIONS\V*") do set "LATEST_VER=%%~nxD"
+set "LATEST_VER=V11_0_NUT_B1_KICH_AM_A6_SOUND"
+for /f "delims=" %%D in ('powershell -ExecutionPolicy Bypass -File "%~dp0get_versions.ps1" -Latest') do set "LATEST_VER=%%D"
 
 echo   >> Phien ban moi nhat tim thay: [!LATEST_VER!]
 echo.

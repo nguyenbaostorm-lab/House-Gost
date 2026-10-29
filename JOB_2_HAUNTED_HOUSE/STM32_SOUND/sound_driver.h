@@ -69,16 +69,16 @@ inline void khoiTaoHeThong(void) {
     HAL_GPIO_Init(PIN_BTN_PORT, &GPIO_InitStruct);
   }
 
-  // Đảm bảo cấu hình Input Pull-Up chuẩn cả HAL lẫn Arduino (Đặc biệt chân PB1 và PB0)
+  // Đảm bảo cấu hình Input Pull-Up chuẩn cả HAL lẫn Arduino (Đặc biệt chân PB7, PB1)
   pinMode(PB0, INPUT_PULLUP);
-  pinMode(PB1, INPUT_PULLUP); // Chân PB1: Nút 4 (Nhạc chiến thắng - thay cho PB7)
+  pinMode(PB1, INPUT_PULLUP);
   pinMode(PB5, INPUT_PULLUP);
   pinMode(PB6, INPUT_PULLUP);
   pinMode(PB7, INPUT_PULLUP);
   pinMode(PB8, INPUT_PULLUP);
   pinMode(PB9, INPUT_PULLUP);
 
-  // Cấu hình chân UART với bo Relay: PB12 (TX) Output Push-Pull, PB13 (RX) Input Pull-Up
+  // Cấu hình chân UART: PB12 (TX) Output Push-Pull, PB13 (RX) Input Pull-Up
   GPIO_InitStruct.Pin = PIN_UART_TX_PIN;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
@@ -89,18 +89,6 @@ inline void khoiTaoHeThong(void) {
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(PIN_UART_PORT, &GPIO_InitStruct);
-
-  // Cấu hình chân UART với bo Jumpscare: PB10 (TX sang B6 Jump) Output Push-Pull, PB11 (RX tu B5 Jump) Input Pull-Up
-  GPIO_InitStruct.Pin = PIN_UART_JUMP_TX_PIN;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-  HAL_GPIO_Init(PIN_UART_JUMP_PORT, &GPIO_InitStruct);
-  HAL_GPIO_WritePin(PIN_UART_JUMP_PORT, PIN_UART_JUMP_TX_PIN, GPIO_PIN_SET); // Idle = HIGH
-
-  GPIO_InitStruct.Pin = PIN_UART_JUMP_RX_PIN;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
-  HAL_GPIO_Init(PIN_UART_JUMP_PORT, &GPIO_InitStruct);
 }
 
 // 2. BẬT 1 rơ-le cụ thể (Số thứ tự từ 1 đến 7)
@@ -133,7 +121,6 @@ inline void tatTatCaRelay(void) {
 
 // 6. Gửi lệnh ký tự sang bo STM32 Relay (qua PB12 TX với chuẩn 9600 baud = 104us/bit)
 inline void guiLenhRelay(char cmd) {
-  noInterrupts(); // Khóa ngắt toàn cục đảm bảo độ rộng xung bit 104us chuẩn xác 100%
   // Start bit: Kéo xuống LOW
   HAL_GPIO_WritePin(PIN_UART_PORT, PIN_UART_TX_PIN, GPIO_PIN_RESET);
   delay_us(104);
@@ -153,7 +140,6 @@ inline void guiLenhRelay(char cmd) {
   // Stop bit: Kéo lên HIGH
   HAL_GPIO_WritePin(PIN_UART_PORT, PIN_UART_TX_PIN, GPIO_PIN_SET);
   delay_us(104);
-  interrupts(); // Mở lại ngắt
 }
 
 // 7. Đọc lệnh từ bo STM32 Relay gửi sang (qua PB13 RX, trả về 0 nếu chưa có lệnh)
@@ -182,53 +168,6 @@ inline char docLenhRelay(void) {
   return 0;
 }
 
-// 7B. Gửi lệnh ký tự sang bo STM32 Jumpscare (qua PB10 TX với 9600 baud = 104us/bit)
-inline void guiLenhJumpscare(char cmd) {
-  noInterrupts();
-  // Start bit: Kéo xuống LOW
-  HAL_GPIO_WritePin(PIN_UART_JUMP_PORT, PIN_UART_JUMP_TX_PIN, GPIO_PIN_RESET);
-  delay_us(104);
-
-  // 8 Data bits (LSB trước, MSB sau)
-  uint8_t data = (uint8_t)cmd;
-  for (uint8_t i = 0; i < 8; i++) {
-    if (data & 0x01) {
-      HAL_GPIO_WritePin(PIN_UART_JUMP_PORT, PIN_UART_JUMP_TX_PIN, GPIO_PIN_SET);
-    } else {
-      HAL_GPIO_WritePin(PIN_UART_JUMP_PORT, PIN_UART_JUMP_TX_PIN, GPIO_PIN_RESET);
-    }
-    delay_us(104);
-    data >>= 1;
-  }
-
-  // Stop bit: Kéo lên HIGH
-  HAL_GPIO_WritePin(PIN_UART_JUMP_PORT, PIN_UART_JUMP_TX_PIN, GPIO_PIN_SET);
-  delay_us(104);
-  interrupts();
-}
-
-// 7C. Đọc lệnh từ bo STM32 Jumpscare gửi sang (qua PB11 RX)
-inline char docLenhJumpscare(void) {
-  if (HAL_GPIO_ReadPin(PIN_UART_JUMP_PORT, PIN_UART_JUMP_RX_PIN) == GPIO_PIN_RESET) {
-    delay_us(52); // Lấy mẫu giữa Start bit
-    if (HAL_GPIO_ReadPin(PIN_UART_JUMP_PORT, PIN_UART_JUMP_RX_PIN) != GPIO_PIN_RESET) {
-      return 0;
-    }
-
-    uint8_t receivedChar = 0;
-    for (uint8_t i = 0; i < 8; i++) {
-      delay_us(104);
-      if (HAL_GPIO_ReadPin(PIN_UART_JUMP_PORT, PIN_UART_JUMP_RX_PIN) == GPIO_PIN_SET) {
-        receivedChar |= (1 << i);
-      }
-    }
-
-    delay_us(104); // Stop bit
-    return (char)receivedChar;
-  }
-  return 0;
-}
-
 // 8. Kiểm tra xem nút nào đang được bấm (Trả về 1..6, hoặc 0 nếu không bấm)
 inline uint8_t kiemTraNutNhan(void) {
   for (uint8_t i = 0; i < 6; i++) {
@@ -240,31 +179,21 @@ inline uint8_t kiemTraNutNhan(void) {
 }
 
 // ==============================================================================
-// HÀM KIỂM TRA NÚT START Ở CHÂN PB0 (BTN1 / NÚT START):
-// - Đọc trạng thái chân tức thời không chặn (Non-blocking)
-// - Bộ lọc chống dội FSM 30ms được xử lý tại main.cpp
-// ==============================================================================
-inline bool kiemTraNutNhanPB0(void) {
-  return (HAL_GPIO_ReadPin(PIN_BTN_PORT, PIN_NUT_NHAN_1) == GPIO_PIN_RESET) || 
-         (digitalRead(PB0) == LOW);
-}
-
-// ==============================================================================
-// HÀM KIỂM TRA CẢM BIẾN / NÚT NHẤN NỐI GND Ở CHÂN PB1 (BTN4 / NHẠC CHIẾN THẮNG):
-// - Cấu hình chân PB1 kéo lên Pull-Up nội bộ (bình thường mức HIGH).
+// HÀM KIỂM TRA CẢM BIẾN / NÚT NHẤN NỐI GND Ở CHÂN PB7 (BTN4 / NHẠC CHIẾN THẮNG):
+// - Cấu hình chân PB7 kéo lên Pull-Up nội bộ (bình thường mức HIGH).
 // - Khi nhận tín hiệu kích âm GND (Mức LOW): lọc chống dội kỹ qua 5 lần đọc liên tiếp trong 50ms
-//   (mỗi lần cách nhau 10ms) để loại bỏ hoàn toàn mọi xung nhiễu điện từ / xung khởi động nguồn.
-// - Hỗ trợ đọc song song cả chân PB1 lẫn PB7 cũ.
+//   (mỗi lần cách nhau 10ms) để loại bỏ hoàn toàn mọi xung nhiễu điện từ / xung khởi động nguồn,
+//   hoàn toàn chuẩn xác theo cơ chế của chân PA6 bên mạch STM32_RELAY.
 // ==============================================================================
-inline bool kiemTraNutNhanPB1(void) {
+inline bool kiemTraNutNhanPB7(void) {
   bool mucThap = (HAL_GPIO_ReadPin(PIN_BTN_PORT, PIN_BTN_4_PIN) == GPIO_PIN_RESET) || 
-                 (digitalRead(PB1) == LOW) || (digitalRead(PB7) == LOW);
+                 (digitalRead(PB7) == LOW);
   if (mucThap) {
     // Kiểm tra liên tục 5 mẫu cách nhau 10ms (tổng 50ms)
     for (uint8_t i = 0; i < 5; i++) {
       delay(10);
       bool vanMucThap = (HAL_GPIO_ReadPin(PIN_BTN_PORT, PIN_BTN_4_PIN) == GPIO_PIN_RESET) || 
-                        (digitalRead(PB1) == LOW) || (digitalRead(PB7) == LOW);
+                        (digitalRead(PB7) == LOW);
       if (!vanMucThap) {
         return false; // Nếu bị ngắt quãng do xung gai nhiễu -> hủy, không kích hoạt
       }
@@ -274,8 +203,29 @@ inline bool kiemTraNutNhanPB1(void) {
   return false;
 }
 
-inline bool kiemTraNutNhanPB7(void) {
-  return kiemTraNutNhanPB1();
+// ==============================================================================
+// HÀM KIỂM TRA NÚT NHẤN / CẢM BIẾN CHÂN PB1 (B1):
+// - Cấu hình chân PB1 kéo lên Pull-Up nội bộ (bình thường mức HIGH).
+// - Khi nhấn nút nối mass GND (Mức LOW):
+//   Lọc chống nhiễu liên tục 15 mẫu x 10ms = 150ms (0.15s) giữ mức LOW ổn định,
+//   vừa loại bỏ hoàn toàn mọi xung gai nhiễu điện từ, vừa phản hồi cực nhạy, không trễ quá lâu.
+// ==============================================================================
+inline bool kiemTraNutNhanPB1(void) {
+  bool mucThap = (HAL_GPIO_ReadPin(PIN_BTN_PORT, PIN_BTN_PB1_PIN) == GPIO_PIN_RESET) || 
+                 (digitalRead(PB1) == LOW);
+  if (mucThap) {
+    // Kiểm tra liên tục 15 mẫu cách nhau 10ms (tổng 150ms)
+    for (uint8_t i = 0; i < 15; i++) {
+      delay(10);
+      bool vanMucThap = (HAL_GPIO_ReadPin(PIN_BTN_PORT, PIN_BTN_PB1_PIN) == GPIO_PIN_RESET) || 
+                        (digitalRead(PB1) == LOW);
+      if (!vanMucThap) {
+        return false; // Bị ngắt quãng do xung gai nhiễu -> hủy, không kích hoạt
+      }
+    }
+    return true; // Thực sự giữ mức LOW ổn định qua 150ms
+  }
+  return false;
 }
 
 // ==============================================================================

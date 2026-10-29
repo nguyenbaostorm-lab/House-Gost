@@ -132,19 +132,17 @@
 #define TOC_DO_CHOP_TAT_RF_MS 150 // Tốc độ nhấp nháy chớp tắt (150ms)
 
 // ==============================================================================
-// 11. CẤU HÌNH CẢM BIẾN NPN 5V CHÂN PA5 (A5) & KỊCH BẢN BỘ GÕ P14
+// 11. CẤU HÌNH NÚT NHẤN CHÂN PA5 (A5) KÍCH ÂM & KỊCH BẢN BỘ GÕ P14 (V9.0: KÍCH ON 45S)
 // ==============================================================================
-// - Chân PA5 (A5), kéo lên INPUT_PULLUP
+// - Chân PA5 (A5), kéo lên INPUT_PULLUP nội bộ
 // - Ban đầu là MỨC CAO (HIGH)
-// - Khi đặt vật vào trước cảm biến: Mức THẤP (LOW / kéo mass GND)
-// - Khi cảm biến BỊ MẤT TÍN HIỆU (nhấc vật ra -> chuyển về mức CAO):
-//   Chân A5 phát hiện và tiếp tục xử lý lệnh (chạy bộ gõ P14 trong 30s -> tắt
-//   đèn -> gửi J)
-#define PIN_BUTTON_BO_GO_A5 PA5 // Chân cảm biến NPN 5V: PA5 (A5)
+// - Khi nhấn nút kích âm: Nối mass GND (mức THẤP / LOW)
+// - Bộ lọc chống dội 50ms xác nhận nút nhấn hợp lệ -> KÍCH ON LIÊN TỤC P14 trong 45s -> sau đó tắt đèn -> gửi J
+#define PIN_BUTTON_BO_GO_A5 PA5 // Chân nút nhấn kích âm GND: PA5 (A5)
 #define THOI_GIAN_BO_GO_MS                                                     \
-  30000UL // Thời gian bộ gõ P14 nhấp nháy ngẫu nhiên: 30 giây
+  45000UL // ⚡ V9.0: Thời gian bộ gõ P14 KÍCH ON LIÊN TỤC: 45 giây (45000ms)
 #define THOI_GIAN_SAU_BO_GO_TAT_DEN_MS                                         \
-  10000UL // Sau 30s gõ, chờ tiếp 10s rồi tắt tất cả đèn, bật P2 & gửi 'J'
+  10000UL // Sau 45s gõ ON liên tục, chờ tiếp 10s rồi tắt tất cả đèn, bật P2 & gửi 'J'
 #define THOI_GIAN_SAU_J_TAT_P2_BAT_P0_P1_MS                                    \
   50000UL // ⏳ Sau khi gửi J và bật P2: chờ 50 giây rồi tắt P2, bật lại P0 và
           // P1
@@ -188,9 +186,10 @@
   RELAY_LED_CUON_SO_P12 // Relay P12 (Bit 10): Đèn LED cuốn sổ
 
 // ==============================================================================
-// 15. NÚT NHẤN KHÔI PHỤC KHI CÚP ĐIỆN DỰ PHÒNG TRÊN BO RELAY (CHÂN PA4)
+// 15. NÚT NHẤN DỰ PHÒNG CHÂN PA4 (A4) KÍCH HOẠT BỘ GÕ P14 (KÍCH ÂM NỐI MASS GND)
 // ==============================================================================
-// - Chân PA4: Cấu hình INPUT_PULLUP, nối nút thường mở về mass GND
-// - Khi nhấn: Khôi phục toàn bộ rơ-le theo checkpoint đã lưu và gửi 'R' sang bo
-// Sound
-#define PIN_BTN_KHOI_PHUC PA4 // Chân PA4 (A4) trên STM32 Blue Pill
+// - Chân PA4: Cấu hình INPUT_PULLUP nội bộ, nối nút bấm về mass GND.
+// - DỰ PHÒNG: Nếu nút PA5 gặp sự cố/hỏng, nhấn nút PA4 cũng sẽ kích hoạt chu trình:
+//   BẬT ON P14 (45s) -> sau đó 10s TẮT HẾT RELAY, BẬT P2 & GỬI LỆNH 'J' SANG BO SOUND.
+#define PIN_BUTTON_BO_GO_A4 PA4 // Chân PA4 (A4) dự phòng kích hoạt bộ gõ P14
+#define PIN_BTN_KHOI_PHUC PA4   // Giữ alias tương thích

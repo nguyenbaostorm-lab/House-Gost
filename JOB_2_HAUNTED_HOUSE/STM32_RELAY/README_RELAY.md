@@ -86,29 +86,25 @@
 
 ---
 
-## 7. CẢM BIẾN NPN 5V CHÂN PA5 (A5) & KỊCH BẢN BỘ GÕ P14 (30S) -> SAU ĐÓ 10S TẮT TẤT CẢ ĐÈN & GỬI LỆNH 'J'
+## 7. NÚT NHẤN CHÂN PA5 (A5) & NÚT DỰ PHÒNG PA4 (A4) KÍCH ÂM & KỊCH BẢN BỘ GÕ P14 (KÍCH ON 45S) -> SAU ĐÓ 10S TẮT TẤT CẢ ĐÈN & GỬI LỆNH 'J'
 
 |      Chân STM32      |      Đầu Nối Ngoại Vi      |         Kiểu Chân (I/O)         | Chức Năng                                               |
 | :--------------------: | :------------------------: | :--------------------------------: | :-------------------------------------------------------- |
-| **`PA5` (A5)** | Dây tín hiệu Cảm biến NPN 5V | Input Pull-Up (kéo lên nội bộ) | Ban đầu mức CAO. Đặt vật: mức THẤP.<br>Khi MẤT TÍN HIỆU (nhấc vật -> mức CAO) ➔ Kích hoạt |
-|   **`GND`**   | Dây âm (0V) Cảm biến NPN |                Mass                | Nối chung mass GND toàn hệ thống                       |
+| **`PA5` (A5)** | Dây tín hiệu Nút nhấn CHÍNH kích âm | Input Pull-Up (kéo lên nội bộ) | Ban đầu mức CAO (3.3V). Khi bấm nút: nối mass mức THẤP (LOW) ➔ Kích hoạt |
+| **`PA4` (A4)** | Dây tín hiệu Nút nhấn DỰ PHÒNG kích âm | Input Pull-Up (kéo lên nội bộ) | **NÚT CỨU NGUY DỰ PHÒNG:** Nếu nút PA5 hỏng/lỗi, bấm PA4 nối mass GND cũng sẽ kích hoạt bộ gõ y hệt |
+|   **`GND`**   | Dây âm (0V) Mass hệ thống |                Mass                | Nối vào chân tiếp điểm còn lại của nút nhấn PA5 và nút dự phòng PA4 |
 
-* **Kịch bản hoạt động:**
-  - 🛡️ **CƠ CHẾ CHỐNG NHIỄU & CHỐNG SẬP HỆ THỐNG CAO CẤP (ANTI-CRASH ONE-SHOT LOCK):**
-    - Sử dụng bộ lọc thời gian thực non-blocking (dựa trên `millis()`, hoàn toàn không dùng hàm `delay()` gây đơ vi điều khiển).
-    - **Giai đoạn 1 (Đặt vật):** Chân `PA5` phải giữ mức THẤP (LOW) liên tục và ổn định $\ge 150\text{ms}$ mới xác nhận là đã đặt vật thành công (loại trừ các xung nhiễu chập chờn ban đầu).
-    - **Giai đoạn 2 (Nhấc vật ra / Mất tín hiệu):** Chân `PA5` phải chuyển sang mức CAO (HIGH) liên tục và ổn định $\ge 150\text{ms}$ mới xác nhận là thực sự nhấc vật ra.
-    - ⚡ **CHỐT KHÓA CỨNG VĨNH VIỄN (HARD LOCK):** Ngay khi nhấc vật thành công, bộ lọc chốt khóa vĩnh viễn (`A5_DA_KHOA_VINH_VIEN`). Dù người chơi có nhấc ra đặt vào bao nhiêu lần đi nữa, hệ thống cũng **KHÔNG BAO GIỜ nhận lại hay gửi lệnh lặp lại**, bảo vệ hệ thống tuyệt đối không bao giờ bị tràn bộ nhớ hay sập!
-  - **Trình tự sau khi kích hoạt nhấc vật:**
-    1. Kích hoạt chân **`P14` (Relay 14: Bộ gõ)** nhấp nháy ngẫu nhiên theo các chu kỳ:
-       - **1s BẬT, 1.5s TẮT**
-       - **2s BẬT, 2s TẮT**
-       - **3s BẬT, 3s TẮT**
-       - Tiến trình gõ ngẫu nhiên này duy trì liên tục trong vòng **30 giây**.
-    2. **Sau 30 giây:**
+* **Kịch bản hoạt động (Phiên bản V10.0 nâng cấp từ V9.0):**
+  - 🛡️ **CƠ CHẾ LỌC DỘI TIẾP ĐIỂM & CHỐT KHÓA MỘT LẦN (ANTI-BOUNCE ONE-SHOT LOCK):**
+    - Cả chân `PA5` và chân `PA4` đều có bộ lọc chống dội 50ms chống xung gai và rung dội tiếp điểm.
+    - ⚡ **CHỐT KHÓA CỨNG VĨNH VIỄN (HARD LOCK):** Ngay khi bấm thành công (dù qua nút `PA5` hay nút dự phòng `PA4`), hệ thống chốt khóa vĩnh viễn (`A5_DA_KHOA_VINH_VIEN`). Dù bấm bao nhiêu lần tiếp theo cũng **KHÔNG BAO GIỜ nhận lại hay kích lặp lại**!
+  - **Trình tự sau khi bấm nút PA5 (hoặc bấm nút dự phòng PA4):**
+    1. **KÍCH BẬT ON LIÊN TỤC chân `P14` (Relay 14: Bộ gõ)** duy trì trong suốt **45 giây**:
+       - Tiếp điểm Relay 14 đóng ON liên tục 45s.
+    2. **Sau 45 giây:**
        - Bộ gõ `P14` dừng hẳn (TẮT hoàn toàn).
        - Bắt đầu đếm thời gian chờ **10 giây**.
-    3. **Sau đó 10 giây (Tổng 40 giây kể từ khi nhấc vật):**
+    3. **Sau đó 10 giây (Tổng 55 giây kể từ khi bấm nút):**
        - **TẮT TẤT CẢ RELAY** (`P0..P14`), **CHỈ DUY NHẤT CHÂN P2 BẬT** (Loa hiệu ứng P2).
        - **GỬI LỆNH `'J'` DUY NHẤT 1 LẦN** qua UART sang bo **STM32_SOUND**.
        - Bắt đầu đếm thời gian chờ **50 giây**.

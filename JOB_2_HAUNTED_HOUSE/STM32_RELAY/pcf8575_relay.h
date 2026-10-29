@@ -417,15 +417,18 @@ inline void tatRelay(uint8_t num)  { if (num >= 1 && num <= TOTAL_RELAYS) tatCha
 // - Khi NHẤC VẬT RA (MẤT TÍN HIỆU): Chân PA5 trở lại mức CAO (HIGH).
 //   -> Phải giữ mức CAO liên tục ổn định >= 150ms mới xác nhận là THỰC SỰ NHẤC VẬT!
 // - ⚡ CHỐT CHẶN KHÓA CỨNG (ONE-SHOT HARD LOCK):
-//   Sau khi đã phát hiện nhấc vật thành công 1 lần:
-//   Khóa chốt vĩnh viễn, từ đó về sau KHÔNG BAO GIỜ nhận lại tín hiệu A5 nữa,
-//   loại bỏ 100% tình trạng nhận qua lại, gửi lặp lệnh làm treo/sập hệ thống!
+// ==============================================================================
+// ⚡ V9.0: BỘ LỌC CHỐNG DỘI VÀ CHỐT KHÓA NÚT NHẤN PA5 (A5) KÍCH ÂM
+// ==============================================================================
+// - Chân PA5 kéo lên INPUT_PULLUP (bình thường mức HIGH).
+// - Khi nhấn nút kích âm GND (mức LOW): xác nhận sau 50ms chống rung dội tiếp điểm.
+// - Khóa chốt vĩnh viễn sau 1 lần nhấn thành công, bảo vệ không kích lặp lại!
 // ==============================================================================
 
 enum TrangThaiLocA5 {
-  A5_CHO_DAT_VAT = 0,      // Ban đầu: Chờ đặt vật vào (mức LOW ổn định)
-  A5_DA_CO_VAT = 1,        // Đã có vật ổn định: Chờ nhấc vật ra (mức HIGH ổn định)
-  A5_DA_KHOA_VINH_VIEN = 2 // Đã kích hoạt 1 lần: Khóa vĩnh viễn không nhận lại
+  A5_CHO_DAT_VAT = 0,      // Trạng thái chờ nhấn nút (sẵn sàng kích hoạt)
+  A5_DA_CO_VAT = 1,        // Trạng thái trung gian
+  A5_DA_KHOA_VINH_VIEN = 2 // Đã nhấn kích hoạt 1 lần: Khóa vĩnh viễn không nhận lại
 };
 
 static TrangThaiLocA5 g_trangThaiLocA5 = A5_CHO_DAT_VAT;
@@ -490,19 +493,39 @@ inline void khoiTaoHeThong() {
   tatTatCaRelay();
 }
 
-// Hàm kiểm tra nút nhấn khôi phục cúp điện ở chân PA4 (kéo lên Pull-up, nối mass GND)
+// ==============================================================================
+// HÀM KIỂM TRA NÚT NHẤN DỰ PHÒNG CHÂN PA4 (A4) - KÍCH ÂM (ACTIVE-LOW: NỐI MASS GND)
+// ==============================================================================
+// - Chân PA4 kéo lên INPUT_PULLUP nội bộ (bình thường mức HIGH 3.3V).
+// - Nối mass GND khi nhấn nút (mức LOW).
+// - Nếu nút chính PA5 bị lỗi, nhấn nút PA4 cũng sẽ kích hoạt chu trình bộ gõ P14.
+// - Có bộ lọc chống dội tiếp điểm cơ khí 50ms (5 mẫu liên tiếp).
 inline bool kiemTraNutNhanPA4() {
-  bool mucThap = (digitalRead(PIN_BTN_KHOI_PHUC) == LOW);
+  if (g_trangThaiLocA5 == A5_DA_KHOA_VINH_VIEN) {
+    return false; // Nếu đã kích hoạt rồi (dù qua PA5 hay PA4) thì khóa không nhận lại
+  }
+
+  bool mucThap = (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_4) == GPIO_PIN_RESET) || 
+                 (digitalRead(PIN_BUTTON_BO_GO_A4) == LOW);
   if (mucThap) {
     for (uint8_t i = 0; i < 5; i++) {
       delay(10);
-      if (digitalRead(PIN_BTN_KHOI_PHUC) != LOW) {
+      bool vanMucThap = (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_4) == GPIO_PIN_RESET) || 
+                        (digitalRead(PIN_BUTTON_BO_GO_A4) == LOW);
+      if (!vanMucThap) {
         return false;
       }
     }
+    // ⚡ KHÓA CHỐT VĨNH VIỄN: Đã kích hoạt chu trình thành công qua nút dự phòng PA4!
+    g_trangThaiLocA5 = A5_DA_KHOA_VINH_VIEN;
     return true;
   }
   return false;
+}
+
+// Alias tương thích
+inline bool kiemTraNutNhanPA4_BoGo() {
+  return kiemTraNutNhanPA4();
 }
 
 // Hàm kiểm tra cảm biến / nút nhấn nối GND ở chân PA6 (A6):
@@ -528,63 +551,43 @@ inline bool kiemTraNutNhanPA6() {
 }
 
 // ==============================================================================
-// HÀM KIỂM TRA CẢM BIẾN NPN 5V CHÂN PA5 (A5)
+// HÀM KIỂM TRA NÚT NHẤN CHÂN PA5 (A5) - KÍCH ÂM (ACTIVE-LOW: NỐI MASS GND)
 // ==============================================================================
-inline bool kiemTraCamBienA5_PhatHienMatTinHieu() {
+// - Chân PA5 kéo lên INPUT_PULLUP nội bộ (bình thường mức HIGH).
+// - Khi nhấn nút (kích âm GND -> mức LOW): lọc chống dội qua 5 lần đọc liên tiếp (50ms).
+// - Sau khi kích hoạt thành công: KHÓA CỨNG VĨNH VIỄN, chỉ nhận đúng 1 lần duy nhất!
+inline bool kiemTraNutNhanPA5() {
   // 1. Nếu đã kích hoạt rồi -> KHÓA CỨNG VĨNH VIỄN, thoát ngay lập tức!
   if (g_trangThaiLocA5 == A5_DA_KHOA_VINH_VIEN) {
     return false;
   }
 
-  // Đọc trạng thái chân PA5 (Mức LOW = có vật, mức HIGH = không có vật)
+  // Đọc mức logic chân PA5 (Mức LOW = đang nhấn nút kích âm GND)
   bool pinMucThap = (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_5) == GPIO_PIN_RESET) || 
                     (digitalRead(PIN_BUTTON_BO_GO_A5) == LOW);
-  uint32_t now = millis();
 
-  // 2. Giai đoạn 1: CHỜ ĐẶT VẬT VÀO (Mức THẤP ổn định liên tục >= 150ms)
-  if (g_trangThaiLocA5 == A5_CHO_DAT_VAT) {
-    if (pinMucThap) {
-      if (!g_dangGiuLowA5) {
-        g_dangGiuLowA5 = true;
-        g_thoiGianBatDauLowA5 = now;
-      } else if (now - g_thoiGianBatDauLowA5 >= 150) {
-        // Đã giữ mức LOW liên tục đủ 150ms -> Xác nhận ĐÃ CÓ VẬT ĐẶT THÀNH CÔNG!
-        g_trangThaiLocA5 = A5_DA_CO_VAT;
-        g_dangGiuHighA5 = false;
+  if (pinMucThap) {
+    // Lọc chống dội tiếp điểm cơ khí: 5 mẫu cách nhau 10ms (tổng 50ms)
+    for (uint8_t i = 0; i < 5; i++) {
+      delay(10);
+      bool vanMucThap = (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_5) == GPIO_PIN_RESET) || 
+                        (digitalRead(PIN_BUTTON_BO_GO_A5) == LOW);
+      if (!vanMucThap) {
+        return false; // Xung gai nhiễu hoặc nhả nút quá nhanh -> bỏ qua
       }
-    } else {
-      // Bị ngắt quãng lên HIGH -> Reset bộ đếm LOW (chống xung nhiễu thoáng qua)
-      g_dangGiuLowA5 = false;
     }
-    return false;
-  }
-
-  // 3. Giai đoạn 2: ĐÃ CÓ VẬT -> CHỜ NHẤC VẬT RA (Mất tín hiệu, mức CAO ổn định >= 150ms)
-  if (g_trangThaiLocA5 == A5_DA_CO_VAT) {
-    if (!pinMucThap) {
-      // Chân đã trở về mức CAO (nhấc vật ra)
-      if (!g_dangGiuHighA5) {
-        g_dangGiuHighA5 = true;
-        g_thoiGianBatDauHighA5 = now;
-      } else if (now - g_thoiGianBatDauHighA5 >= 150) {
-        // Đã giữ mức CAO liên tục đủ 150ms -> Xác nhận THỰC SỰ ĐÃ NHẤC VẬT RA!
-        // ⚡ KHÓA CHỐT VĨNH VIỄN NGAY TẠI ĐÂY:
-        g_trangThaiLocA5 = A5_DA_KHOA_VINH_VIEN;
-        return true; // 👉 KÍCH HOẠT CHU TRÌNH ĐÚNG 1 LẦN DUY NHẤT!
-      }
-    } else {
-      // Vẫn còn đặt vật hoặc bị rung lắc về LOW -> Reset bộ đếm HIGH
-      g_dangGiuHighA5 = false;
-    }
-    return false;
+    // Xác nhận đã nhấn nút kích âm GND hợp lệ!
+    // ⚡ KHÓA CHỐT VĨNH VIỄN: Chỉ nhận đúng 1 lần duy nhất trong ván chơi
+    g_trangThaiLocA5 = A5_DA_KHOA_VINH_VIEN;
+    return true;
   }
 
   return false;
 }
 
-// Giữ alias tương thích
-inline bool kiemTraNutNhanPA5() {
-  return kiemTraCamBienA5_PhatHienMatTinHieu();
+// Alias tương thích cho các hàm gọi cũ
+inline bool kiemTraCamBienA5_PhatHienMatTinHieu() {
+  return kiemTraNutNhanPA5();
 }
 
 // Giữ alias tương thích nếu có đoạn code cũ gọi tới

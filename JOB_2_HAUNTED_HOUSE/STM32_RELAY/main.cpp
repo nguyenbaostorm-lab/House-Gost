@@ -35,32 +35,14 @@ static bool daTatP13_Sau10sK = false; // Cờ đánh dấu đã tắt P13 sau 10
 static bool daXuLy30sSauK = false;    // Cờ đánh dấu đã qua 30s (10s bật + 20s tắt) và bật lại P3
 
 // ==============================================================================
-// CÁC MẪU NHẤP NHÁY NGẪU NHIÊN CHO BỘ GÕ P14 (THEO YÊU CẦU NGƯỜI DÙNG)
-// 1. 1s BẬT, 1.5s TẮT
-// 2. 2s BẬT, 2s TẮT
-// 3. 3s BẬT, 3s TẮT
+// ⚡ V8.0: KỊCH BẢN BỘ GÕ P14 KÍCH ON LIÊN TỤC TRONG 45 GIÂY (THEO YÊU CẦU NGƯỜI DÙNG)
+// (Phiên bản V8.0 nâng cấp từ V1 Chuẩn: Thay thế hoàn toàn các chu kỳ nhấp nháy cũ
+//  1s Bật 1.5s Tắt / 2s Bật 2s Tắt / 3s Bật 3s Tắt thành KÍCH ON LIÊN TỤC TRONG 45S)
 // ==============================================================================
-struct MauBoGo {
-  uint32_t thoiGianBatMs;
-  uint32_t thoiGianTatMs;
-};
-
-static const MauBoGo CAC_MAU_BO_GO[] = {
-    {1000UL, 1500UL}, // Mẫu 1: 1s BẬT, 1.5s TẮT
-    {2000UL, 2000UL}, // Mẫu 2: 2s BẬT, 2s TẮT
-    {3000UL, 3000UL}  // Mẫu 3: 3s BẬT, 3s TẮT
-};
-static const uint8_t SO_MAU_BO_GO =
-    sizeof(CAC_MAU_BO_GO) / sizeof(CAC_MAU_BO_GO[0]);
-
 // Các biến quản lý kịch bản bộ gõ P14 khi nhấn nút PA5
 static bool boGoDangChay = false;
 static uint32_t thoiGianBatDauBoGo = 0;
-static uint32_t thoiGianChuyenTrangThaiBoGo = 0;
-static uint32_t thoiGianGiuTrangThaiHienTai = 0;
-static bool trangThaiBoGoHienTai = false;
-static uint8_t chiSoMauHienTai = 0;
-static bool daKetThuc30sBoGo = false;
+static bool daKetThucBoGo = false; // Đã xong 45s kích ON bộ gõ
 static bool daTatDenSauBoGo = false;
 static bool daGuiLenhJ = false;
 static bool daXuLyTinHieuA5 = false; // Chốt chỉ nhận mất tín hiệu A5 đúng 1 lần duy nhất!
@@ -140,7 +122,7 @@ void thucHienKhoiPhucRelay(uint8_t stage, uint8_t p6Mo) {
       daTatDenSauBoGo = true;
       daGuiLenhJ = true;
       daXuLyTinHieuA5 = true;
-      daKetThuc30sBoGo = true;
+      daKetThucBoGo = true;
       boGoDangChay = false;
       trangThai = TRANG_THAI_CHO_50S_P2;
       break;
@@ -338,27 +320,10 @@ void loop() {
   }
 
   // ==========================================================================
-  // 👉 2. NÚT BẤM KHÔI PHỤC KHI CÚP ĐIỆN DỰ PHÒNG TRÊN BO RELAY (CHÂN PA4):
-  // - Khi nhấn nút nối mass GND ở PA4:
-  //   1. Tự động đọc lại mốc đã lưu trong Flash
-  //   2. Bật lại đúng rơ-le và gửi lệnh 'R' sang bo Sound cùng khôi phục
+  // 👉 2. CHÂN PA4 TRONG BẢN V10 ĐƯỢC CHUYỂN DỤNG LÀM NÚT DỰ PHÒNG CHO BỘ GÕ P14:
+  // (Khôi phục khi cúp điện đã có cơ chế tự động từ Flash khi khởi động)
   // ==========================================================================
-  static bool daNhanPA4 = false;
-  if (!daNhanPA4) {
-    if (kiemTraNutNhanPA4()) {
-      daNhanPA4 = true;
-      DuLieuCheckpointRelay cp = docCheckpointFlashRelay();
-      if (cp.magic == FLASH_MAGIC_KEY && cp.stage > 0) {
-        guiLenhSound('R'); // Gửi sang bo Sound để cùng khôi phục
-        delay(20);
-        thucHienKhoiPhucRelay(cp.stage, cp.p6Opened);
-      }
-    }
-  } else {
-    if (digitalRead(PIN_BTN_KHOI_PHUC) != LOW) {
-      daNhanPA4 = false;
-    }
-  }
+
 
   // ==========================================================================
   // 👉 LUỒNG XỬ LÝ RIÊNG BIỆT CHO CHÂN A6 (PA6):
@@ -460,7 +425,7 @@ void loop() {
       daBatR7_SauH = false;
       daBatP10_P3_SauH = false;
       boGoDangChay = false;
-      daKetThuc30sBoGo = true;
+      daKetThucBoGo = true;
       daTatDenSauBoGo = true;
       daGuiJ_BatP2 = false;
       daTatP2_BatP0_P1 = false;
@@ -486,7 +451,7 @@ void loop() {
       daBatR7_SauH = false;
       daBatP10_P3_SauH = false;
       boGoDangChay = false;
-      daKetThuc30sBoGo = false;
+      daKetThucBoGo = false;
       daTatDenSauBoGo = false;
       daGuiLenhJ = false;
       daNhanLenhK = false;
@@ -686,58 +651,41 @@ void loop() {
   }
 
   // ==========================================================================
-  // 👉 CẢM BIẾN NPN 5V CHÂN PA5 (A5): KHI CẢM BIẾN BỊ MẤT TÍN HIỆU (NHẤC VẬT RA)
-  // ⚡ CHỈ NHẬN ĐÚNG 1 LẦN DUY NHẤT (nếu lỡ có nhận nữa thì cũng không có tác dụng)
-  // PHÁT HIỆN VÀ KÍCH HOẠT CHU TRÌNH BỘ GÕ P14 (30S) -> SAU ĐÓ 10S GỬI LỆNH 'J'
+  // 👉 NÚT NHẤN CHÂN PA5 (A5) HOẶC NÚT DỰ PHÒNG PA4 (A4) - KÍCH ÂM NỐI MASS GND:
+  // ⚡ NẾU NÚT PA5 BỊ LỖI -> BẤM NÚT PA4 VẪN KÍCH HOẠT CHU TRÌNH BÌNH THƯỜNG!
+  // CHỈ NHẬN ĐÚNG 1 LẦN DUY NHẤT (BẢO VỆ CHỐT CỨNG)
+  // PHÁT HIỆN VÀ KÍCH HOẠT CHU TRÌNH BỘ GÕ P14 (KÍCH ON 45S) -> SAU ĐÓ 10S GỬI LỆNH 'J'
   // ==========================================================================
-  if (!daXuLyTinHieuA5 && !boGoDangChay && !daKetThuc30sBoGo && !daTatDenSauBoGo && kiemTraNutNhanPA5()) {
+  bool coTinHieuKichBoGo = kiemTraNutNhanPA5() || kiemTraNutNhanPA4();
+  if (!daXuLyTinHieuA5 && !boGoDangChay && !daKetThucBoGo && !daTatDenSauBoGo && coTinHieuKichBoGo) {
     daXuLyTinHieuA5 = true; // Chốt chỉ nhận đúng 1 lần duy nhất!
     boGoDangChay = true;
     thoiGianBatDauBoGo = now;
-    thoiGianChuyenTrangThaiBoGo = now;
-    chiSoMauHienTai = random(0, SO_MAU_BO_GO);
-    trangThaiBoGoHienTai = true; // Bắt đầu bằng BẬT P14
-    thoiGianGiuTrangThaiHienTai = CAC_MAU_BO_GO[chiSoMauHienTai].thoiGianBatMs;
-    batChanPCF(RELAY_BO_GO_P14); // BẬT Relay 14 (P14: Bộ gõ)
-    daKetThuc30sBoGo = false;
+    batChanPCF(RELAY_BO_GO_P14); // ⚡ V10.0: KÍCH ON LIÊN TỤC CHÂN P14 (Relay 14: Bộ gõ) trong 45 giây
+    daKetThucBoGo = false;
     daTatDenSauBoGo = false;
     daGuiLenhJ = false;
   }
 
   // ==========================================================================
-  // XỬ LÝ TIẾN TRÌNH BỘ GÕ P14 & TẮT TẤT CẢ ĐÈN SAU ĐÓ 10S:
-  // - Trong 30s: Nhấp nháy ngẫu nhiên (1s BẬT 1.5s TẮT / 2s BẬT 2s TẮT / 3s BẬT
-  // 3s TẮT)
-  // - Sau 30s: Tắt bộ gõ P14
-  // - Sau đó 10s (tổng 40s): Tắt tất cả đèn (P0..P2 loa giữ BẬT) & Gửi lệnh 'J'
+  // XỬ LÝ TIẾN TRÌNH BỘ GÕ P14 & TẮT TẤT CẢ ĐÈN SAU ĐÓ 10S (V8.0: KÍCH ON LIÊN TỤC 45S):
+  // - Giai đoạn 1 (0..45s): Bộ gõ P14 GIỮ KÍCH ON LIÊN TỤC trong 45 giây
+  // - Giai đoạn 2 (Sau 45s): Tắt dứt điểm bộ gõ P14
+  // - Giai đoạn 3 (Sau đó 10s - Tổng 55s): Tắt tất cả đèn (P0..P14, chỉ P2 loa bật) & Gửi lệnh 'J'
   // ==========================================================================
   if (boGoDangChay) {
     uint32_t thoiGianTroiQua = now - thoiGianBatDauBoGo;
 
-    // Giai đoạn 1: Trong vòng 30s đầu -> nhấp nháy ngẫu nhiên
-    if (thoiGianTroiQua < THOI_GIAN_BO_GO_MS) {
-      if (now - thoiGianChuyenTrangThaiBoGo >= thoiGianGiuTrangThaiHienTai) {
-        thoiGianChuyenTrangThaiBoGo = now;
-        trangThaiBoGoHienTai = !trangThaiBoGoHienTai;
-        if (trangThaiBoGoHienTai) {
-          chiSoMauHienTai = random(0, SO_MAU_BO_GO);
-          thoiGianGiuTrangThaiHienTai =
-              CAC_MAU_BO_GO[chiSoMauHienTai].thoiGianBatMs;
-          batChanPCF(RELAY_BO_GO_P14); // BẬT
-        } else {
-          thoiGianGiuTrangThaiHienTai =
-              CAC_MAU_BO_GO[chiSoMauHienTai].thoiGianTatMs;
-          tatChanPCF(RELAY_BO_GO_P14); // TẮT
-        }
-      }
-    }
-    // Giai đoạn 2: Đủ 30s -> Tắt dứt điểm bộ gõ P14
-    else if (!daKetThuc30sBoGo) {
-      tatChanPCF(RELAY_BO_GO_P14);
-      daKetThuc30sBoGo = true;
+    // Giai đoạn 1: Trong suốt 45 giây đầu -> Relay P14 được giữ KÍCH ON LIÊN TỤC (đã bật lúc bắt đầu)
+    // (V8.0 loại bỏ hoàn toàn việc nhấp nháy ngẫu nhiên theo yêu cầu)
+
+    // Giai đoạn 2: Hết 45s -> Tắt dứt điểm bộ gõ P14
+    if (thoiGianTroiQua >= THOI_GIAN_BO_GO_MS && !daKetThucBoGo) {
+      tatChanPCF(RELAY_BO_GO_P14); // TẮT bộ gõ P14 sau 45s ON liên tục
+      daKetThucBoGo = true;
     }
 
-    // Giai đoạn 3: Sau đó 10s (30s + 10s = 40s từ khi mất tín hiệu A5):
+    // Giai đoạn 3: Sau đó 10s (45s + 10s = 55s từ khi mất tín hiệu A5):
     // 👉 TẮT TẤT CẢ RELAY CỦA CÁC CHÂN P0 ĐẾN P14, CHỈ RIÊNG DUY NHẤT CHÂN P2 BẬT & GỬI LỆNH 'J'
     // 👉 BẮT ĐẦU ĐẾM THỜI GIAN CHỜ 50S ĐỂ TẮT P2, BẬT LẠI P0 VÀ P1
     if (thoiGianTroiQua >=

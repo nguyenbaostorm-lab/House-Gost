@@ -28,12 +28,12 @@ flowchart TD
     STEP_H2 --> WAIT_45S{"14. Đã đủ 45 giây sau đó?"}
     WAIT_45S -- "Chưa đủ" --> WAIT_45S
     WAIT_45S -- "Đã đủ 45s" --> STEP_H3["15. BẬT ĐÈN RỒNG PHƯỢNG (P10) VÀ RELAY P3"]
-    STEP_H3 --> WAIT_A5{"16. Chờ cảm biến NPN A5 (PA5) BỊ MẤT TÍN HIỆU?<br>(Sau khi đã đặt vật LOW -> nhấc vật ra HIGH)"}
-    WAIT_A5 -- "Vẫn còn tín hiệu" --> WAIT_A5
-    WAIT_A5 -- "Mất tín hiệu (Mức HIGH)" --> KNOCK_30S["17. BỘ GÕ P14 NHẤP NHÁY NGẪU NHIÊN 30S:<br>- 1s BẬT, 1.5s TẮT<br>- 2s BẬT, 2s TẮT<br>- 3s BẬT, 3s TẮT"]
-    KNOCK_30S --> WAIT_KNOCK_30S{"Đã hết 30 giây?"}
-    WAIT_KNOCK_30S -- "Chưa đủ" --> KNOCK_30S
-    WAIT_KNOCK_30S -- "Đã đủ 30s" --> KNOCK_OFF["18. TẮT BỘ GÕ P14<br>- Bắt đầu đếm chờ 10s tiếp theo"]
+    STEP_H3 --> WAIT_A5{"16. Chờ bấm nút PA5 HOẶC nút dự phòng PA4?<br>(Kích âm mức LOW nối mass GND)"}
+    WAIT_A5 -- "Chưa nhấn" --> WAIT_A5
+    WAIT_A5 -- "Nhấn PA5 hoặc PA4 (Mức LOW)" --> KNOCK_ON_45S["17. BỘ GÕ P14 KÍCH ON LIÊN TỤC 45S<br>(Không nhấp nháy, giữ ON liên tục 45s)"]
+    KNOCK_ON_45S --> WAIT_KNOCK_45S{"Đã hết 45 giây?"}
+    WAIT_KNOCK_45S -- "Chưa đủ" --> KNOCK_ON_45S
+    WAIT_KNOCK_45S -- "Đã đủ 45s" --> KNOCK_OFF["18. TẮT BỘ GÕ P14<br>- Bắt đầu đếm chờ 10s tiếp theo"]
     KNOCK_OFF --> WAIT_10S_OFF{"Đã đủ 10 giây sau đó?"}
     WAIT_10S_OFF -- "Chưa đủ" --> WAIT_10S_OFF
     WAIT_10S_OFF -- "Đã đủ 10s" --> OFF_ALL_LIGHTS["19. SAU 10S: TẮT TẤT CẢ RELAY (P0..P14)<br>- CHỈ RIÊNG DUY NHẤT CHÂN P2 BẬT<br>- GỬI LỆNH 'J' CHO BO SOUND<br>- Bắt đầu đếm chờ 50 giây"]

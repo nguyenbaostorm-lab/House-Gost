@@ -61,6 +61,10 @@ function Select-And-Flash-Version {
 
     $verDirs = Get-ChildItem -Path $versionsRoot -Directory | Where-Object {
         Test-Path (Join-Path $_.FullName $machName)
+    } | Sort-Object {
+        if ($_.Name -match '^V(\d+)(?:_(\d+))?') {
+            [int]$matches[1] * 1000 + $(if ($matches[2]) { [int]$matches[2] } else { 0 })
+        } else { 0 }
     }
 
     for ($i = 0; $i -lt $verDirs.Count; $i++) {

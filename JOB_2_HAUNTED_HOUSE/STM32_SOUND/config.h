@@ -1,5 +1,4 @@
 #pragma once
-#include <Arduino.h>
 #include "stm32f1xx_hal.h"
 
 // ==============================================================================
@@ -35,20 +34,24 @@
 #define RELAY_OFF GPIO_PIN_RESET // Mức LOW (0V): Ngắt rơ-le (Tắt)
 
 // ==============================================================================
-// 2. CẤU HÌNH 6 CHÂN NÚT BẤM CƠ (NỐI MASS GND, KÉO LÊN NỘI BỘ PULL-UP)
+// 2. CẤU HÌNH CÁC CHÂN NÚT BẤM CƠ & CẢM BIẾN (NỐI MASS GND, KÉO LÊN PULL-UP)
 // ==============================================================================
 #define PIN_BTN_PORT GPIOB
 #define PIN_BTN_1_PIN GPIO_PIN_0 // Nút nhấn 1: Chân PB0
 #define PIN_BTN_2_PIN GPIO_PIN_5 // Nút nhấn 2: Chân PB5
 #define PIN_BTN_3_PIN GPIO_PIN_6 // Nút nhấn 3: Chân PB6
-#define PIN_BTN_4_PIN                                                          \
-  GPIO_PIN_1 // Nút nhấn 4: Chân PB1 (Thay cho PB7, nằm ngay sát cạnh PB0)
+#define PIN_BTN_4_PIN GPIO_PIN_7 // Nút nhấn 4: Chân PB7
 #define PIN_BTN_5_PIN                                                          \
   GPIO_PIN_8 // Nút nhấn 5: Chân PB8 (NÚT KHÔI PHỤC KHI CÚP ĐIỆN)
 #define PIN_BTN_6_PIN                                                          \
   GPIO_PIN_9 // Chân PB9: Nút nhấn 6 / Nhận tín hiệu kênh R1 mạch RF433 (Dừng
              // khẩn cấp)
 #define PIN_RF_R1_PIN PIN_BTN_6_PIN // Kênh R1 của mạch RF433 nối vào PB9
+
+// Chân PB1 (B1): Nhận tín hiệu kích âm GND (Nút nhấn / Cảm biến nối mass GND)
+// Khi kích mức LOW: Tắt A0..A5, BẬT A6
+#define PIN_BTN_PB1_PIN GPIO_PIN_1 // Chân PB1 (B1)
+#define PIN_BTN_PB1     PB1        // Chân PB1 chuẩn Arduino
 
 // Tên gọi bí danh thân thiện
 #define PIN_NUT_NHAN_1 PIN_BTN_1_PIN
@@ -71,18 +74,6 @@
   GPIO_PIN_13 // Chân 13 (PB13 - RX): Nhận dữ liệu từ bo Relay
 #define UART_BAUDRATE                                                          \
   9600 // Tốc độ truyền thông nối tiếp 9600 baud (104us / bit)
-
-// ==============================================================================
-// 3B. CỔNG GIAO TIẾP UART VỚI BO STM32 JUMPSCARE (PB10 TX & PB11 RX)
-// ==============================================================================
-#define PIN_UART_JUMP_PORT GPIOB
-#define PIN_UART_JUMP_TX_PIN GPIO_PIN_10 // Chân B10 (TX bo Sound): Nối sang chân B6 bo Jumpscare
-#define PIN_UART_JUMP_RX_PIN GPIO_PIN_11 // Chân B11 (RX bo Sound): Nối từ chân B5 bo Jumpscare
-const int PIN_SOUND_RELAY = PA6;          // Relay âm thanh PA6
-const int PIN_JUMP_RX = PB11;             // Chân RX giao tiếp với Jumpscare
-const int PIN_JUMP_TX = PB10;             // Chân TX giao tiếp với Jumpscare
-const unsigned long SOUND_ON_TIME  = 500; // Bật 500ms
-const unsigned long SOUND_OFF_TIME = 500; // Tắt 500ms
 
 // ==============================================================================
 // 4. ĐÈN BÁO TRẠNG THÁI (HEARTBEAT) TRÊN BO STM32 BLUE PILL
@@ -110,8 +101,8 @@ const unsigned long SOUND_OFF_TIME = 500; // Tắt 500ms
 // 7. CẤU HÌNH THỜI GIAN BẬT CHÂN A1 / RELAY 2 (TRÒ CHUYỆN TRÊN GÁC) & GỬI LỆNH
 // 'F'
 // ==============================================================================
-// Khi nhận 'D': Bật A1 cuộc trò chuyện chạy trong vòng 3 phút 43 giây rồi TẮT
-// HẲN, sau đó gửi lệnh 'F'
+// Khi nhận 'D': Bật A1 cuộc trò chuyện chạy trong vòng 3 phút 43 giây rồi TẮT HẲN, sau
+// đó gửi lệnh 'F'
 #ifndef CHE_DO_THOI_GIAN
 #define CHE_DO_THOI_GIAN 1 // 1: Giờ mới (Đúng giờ: 3p43s) | 2: Giờ cũ (Sai giờ: 15s)
 #endif
@@ -147,7 +138,7 @@ const unsigned long SOUND_OFF_TIME = 500; // Tắt 500ms
 // - Sau đó tắt A3, chờ 5 giây
 // - Bật âm thanh ở chân A4 (PA4) trong 15 giây rồi tắt hẳn
 #define THOI_GIAN_J_BAT_A3_MS                                                  \
-  53000UL // ⏳ Thời gian bật Relay chân A3: 53 giây (giảm 7s từ 60s)
+  60000UL // ⏳ Thời gian bật Relay chân A3: 1 phút = 60s (60000ms)
 #define THOI_GIAN_J_CHO_A4_MS                                                  \
   5000UL // ⏳ Thời gian chờ trước khi bật A4: 5 giây (5000ms)
 #define THOI_GIAN_J_BAT_A4_MS                                                  \
@@ -188,9 +179,19 @@ const unsigned long SOUND_OFF_TIME = 500; // Tắt 500ms
 //     TẮT toàn bộ A0..A5.
 //   + Bấm lần 2 (TẮT): TẮT Relay A6 (PA6).
 //   + Có thể kích hoạt BẤT CỨ LÚC NÀO.
-#define PIN_BTN_PB1_PIN                                                        \
-  PIN_BTN_4_PIN         // Nút 4 / Cảm biến: chân PB1 (kéo lên INPUT_PULLUP)
-#define PIN_BTN_PB1 PB1 // Chân PB1 chuẩn Arduino
-#define PIN_BTN_PB7_PIN PIN_BTN_4_PIN // Alias tương thích cũ
-#define PIN_BTN_PB7 PB1               // Alias tương thích cũ
-#define RELAY_A6_NUM 7 // Relay 7 tương ứng chân PA6 (A6: Nhạc chiến thắng)
+#define PIN_BTN_PB7_PIN                                                        \
+  PIN_BTN_4_PIN         // Nút 4 / Cảm biến: chân PB7 (kéo lên INPUT_PULLUP)
+#define PIN_BTN_PB7 PB7 // Chân PB7 chuẩn Arduino
+#define RELAY_A6_NUM 7  // Relay 7 tương ứng chân PA6 (A6: Nhạc chiến thắng)
+
+// ==============================================================================
+// 13. CẤU HÌNH NÚT NHẤN / CẢM BIẾN CHÂN PB1 (B1): KÍCH ÂM GND TẮT A0..A5 VÀ BẬT A6
+// ==============================================================================
+// - Chân STM32: PB1 (B1) kéo lên nội bộ INPUT_PULLUP (nghỉ ở mức HIGH).
+// - Đầu nối ngoại vi: Dùng GND để nhấn (tiếp điểm khô nối mass GND).
+// - Lọc chống nhiễu: Giữ mức LOW liên tục trong khoảng 150ms (15 mẫu x 10ms)
+//   vừa chống nhiễu triệt để vừa nhạy, không trễ quá lâu.
+// - Hoạt động: Khi nhận tín hiệu GND hợp lệ -> TẮT toàn bộ A0, A1, A2, A3, A4, A5
+//   và CHỈ BẬT DUY NHẤT chân A6 (PA6).
+#define THOI_GIAN_LOC_NHIEU_PB1_MS 150 // Thời gian xác nhận chống nhiễu chân PB1 (150ms)
+

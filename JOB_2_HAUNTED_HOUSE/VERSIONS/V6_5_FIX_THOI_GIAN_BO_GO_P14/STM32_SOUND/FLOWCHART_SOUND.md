@@ -2,7 +2,7 @@
 flowchart TD
     START(["1. Cấp nguồn / Bắt đầu"]) --> INIT["Khởi tạo GPIO (Relay A0..A6, Nút PB0, RF433 PB9) và UART"]
     INIT --> STABLE_3S["Khởi động ổn định trong vòng 3 giây<br>Toàn bộ Relay tắt hoàn toàn"]
-    
+  
     STABLE_3S --> PARALLEL{"LUỒNG SONG SONG:<br>Kiểm tra RF433 R1 (PB9)"}
     PARALLEL -- "PB9 Kích hoạt (Mọi thời điểm)" --> RF_TRIGGER["BẬT Relay 4 (A3 - ÂM THANH HÙ RÉ)<br>Đếm thời gian 10s (Non-blocking)"]
     RF_TRIGGER --> RF_CHECK{"Hết 10 giây?"}
@@ -43,4 +43,3 @@ flowchart TD
     WAIT_15S_A4 -- "Đã đủ 15s" --> STEP_J4["17. TẮT HẲN chân A4<br>- GỬI LỆNH 'K' SANG BO STM32_RELAY"]
     STEP_J4 --> FINISH(["18. Hoàn thành kịch bản / Duy trì"])
 ```
-
