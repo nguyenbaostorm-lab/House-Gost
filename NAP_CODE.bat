@@ -32,6 +32,8 @@ echo   [6] KIEM TRA BIEN DICH (BUILD TEST CA 3 MACH)
 echo   [7] QUET LAI CONG ST-LINK
 echo   [8] NAP TEST CAM BIEN (TEST_CAM_BIEN: PB0 + PC13)
 echo   [9] NAP TEST NUT A6 - RELAY A4 (PA6 den PA4 trong 4s)
+echo   [T0] TEST STM32 SONG CHET (3s nhay cham, sau 3s nhay nhanh, keo GND tat PC13)
+echo   [T1] TEST TOAN BO CAC CHAN GPIO (Xuat 3.3V/0V tren tat ca chan PA, PB, PC)
 echo.
 echo   TEST GIAO TIEP UART (SOUND VA JUMPSCARE):
 echo   [TS] NAP TEST UART BO SOUND     (PB10 sang B6, PB11 tu B5)
@@ -50,6 +52,10 @@ if "!main_choice!"=="6" goto TEST_BUILD
 if "!main_choice!"=="7" goto MAIN_MENU
 if "!main_choice!"=="8" goto NAP_TEST_CAM_BIEN
 if "!main_choice!"=="9" goto NAP_TEST_NUT_A6_RELAY_A4
+if /i "!main_choice!"=="T0" goto NAP_TEST_CHIP_ALIVE
+if /i "!main_choice!"=="TEST" goto NAP_TEST_CHIP_ALIVE
+if /i "!main_choice!"=="T" goto NAP_TEST_CHIP_ALIVE
+if /i "!main_choice!"=="T1" goto NAP_TEST_ALL_PINS
 if /i "!main_choice!"=="TS" goto NAP_TEST_UART_SOUND
 if /i "!main_choice!"=="TJ" goto NAP_TEST_UART_JUMPSCARE
 if "!main_choice!"=="0" exit /b 0
@@ -376,6 +382,38 @@ echo   Relay PA3 va LED PC13 nhay khi nhan Ping!
 echo ========================================================
 echo.
 "C:\Users\MR_STORM\.platformio\penv\Scripts\pio.exe" run -e TEST_UART_JUMPSCARE -t upload
+echo.
+echo Da thuc hien xong!
+pause
+goto MAIN_MENU
+
+:NAP_TEST_CHIP_ALIVE
+cls
+echo ========================================================
+echo   Dang nap code TEST STM32 SONG CHET qua ST-Link...
+echo ========================================================
+echo   QUY TRINH TEST:
+echo   1. Khoi dong 3 giay: LED PC13 nhay CHAT (500ms) - Xac nhan khoi dong OK
+echo   2. Sau 3 giay:       LED PC13 nhay NHANH (100ms) - STM32 song, san sang test
+echo   3. Test GPIO:        Cam day GND cham vao bat ky chan GPIO (PA/PB/PC)
+echo                        -^> Neu chan tot: LED PC13 se TAT trong luc cham!
+echo                        -^> Nha ra khoi GND: LED PC13 tiep tuc nhay nhanh.
+echo ========================================================
+echo.
+"C:\Users\MR_STORM\.platformio\penv\Scripts\pio.exe" run -e TEST_STM32_CHIP_ALIVE -t upload
+echo.
+echo Da thuc hien xong!
+pause
+goto MAIN_MENU
+
+:NAP_TEST_ALL_PINS
+cls
+echo ========================================================
+echo   Dang nap code TEST TOAN BO CAC CHAN GPIO qua ST-Link...
+echo   Target: PA0..PA8, PA11, PA12, PA15, PB0..PB15, PC13..PC15
+echo ========================================================
+echo.
+"C:\Users\MR_STORM\.platformio\penv\Scripts\pio.exe" run -e TEST_ALL_PINS -t upload
 echo.
 echo Da thuc hien xong!
 pause
